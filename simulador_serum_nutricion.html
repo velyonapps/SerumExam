@@ -379,8 +379,8 @@
         <div class="label">Preguntas</div>
       </div>
       <div class="info-box">
-        <div class="number">100</div>
-        <div class="label">Minutos</div>
+        <div class="number">120</div>
+<div class="label">Minutos</div>
       </div>
       <div class="info-box">
         <div class="number">500</div>
@@ -402,7 +402,7 @@
       </div>
       <div class="q-counter">Pregunta <strong id="current-q-display">1</strong> de 100</div>
       <div class="timer-box" id="timer-box">
-        ⏱ <span id="timer-display">100:00</span>
+        ⏱ <span id="timer-display">120:00</span>
       </div>
     </div>
     <div class="progress-bar-wrap">
@@ -502,7 +502,7 @@ let examQuestions = [];
 let userAnswers = {};   // index -> letter
 let currentQuestion = 0;
 let timerInterval = null;
-let timeLeft = 100 * 60; // 100 minutes in seconds
+let timeLeft = 120 * 60; // 120 minutes in seconds
 let examStartTime = null;
 let examFinished = false;
 
@@ -513,7 +513,7 @@ function startExam() {
   examQuestions = shuffled.slice(0, 100);
   userAnswers = {};
   currentQuestion = 0;
-  timeLeft = 100 * 60;
+  timeLeft = 120 * 60;
   examFinished = false;
 
   document.getElementById('welcome-screen').style.display = 'none';

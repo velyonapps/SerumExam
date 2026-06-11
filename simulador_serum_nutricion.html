@@ -356,6 +356,15 @@
   }
   .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
+  .btn-download {
+    padding: 12px 24px; border-radius: 12px; font-size: 0.95rem;
+    font-weight: 700; cursor: pointer; border: 2px solid var(--primary);
+    background: white; color: var(--primary); transition: all 0.2s;
+  }
+  .btn-download:hover { background: var(--secondary); transform: translateY(-1px); }
+  .btn-download-pdf { border-color: #6c757d; color: #6c757d; }
+  .btn-download-pdf:hover { background: #f8f9fa; }
+
   @media (max-width: 768px) {
     .exam-body { flex-direction: column; padding: 12px; }
     .navigator { width: 100%; position: static; max-height: none; }
@@ -480,6 +489,10 @@
     <div class="result-stat blue"><div class="num" id="r-time">--</div><div class="lab">⏱ Tiempo usado</div></div>
   </div>
   <button class="btn-restart" onclick="restartExam()">🔄 Hacer otro examen</button>
+  <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:32px;">
+    <button class="btn-download" onclick="downloadCSV()">📥 Descargar incorrectas y pendientes (Excel/CSV)</button>
+    <button class="btn-download btn-download-pdf" onclick="downloadHTML()">🖨️ Exportar para imprimir (HTML)</button>
+  </div>
 
   <div class="review-section">
     <h3>Revisión de Preguntas</h3>
@@ -777,6 +790,89 @@ function restartExam() {
 function escapeHtml(str) {
   if (!str) return '';
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getFailedQuestions() {
+  return examQuestions.map((q, i) => {
+    const ua = userAnswers[i];
+    const status = !ua ? 'Sin responder' : (ua === q.answer ? 'Correcta' : 'Incorrecta');
+    return { idx: i+1, q, ua, status };
+  }).filter(x => x.status !== 'Correcta');
+}
+
+function downloadCSV() {
+  const failed = getFailedQuestions();
+  if (failed.length === 0) { alert('¡Felicidades! No tienes preguntas incorrectas ni pendientes.'); return; }
+
+  const rows = [['N°','Pregunta','Tu respuesta','Respuesta correcta','A','B','C','D','Estado']];
+  failed.forEach(({ idx, q, ua, status }) => {
+    const yourAns = ua ? `${ua}. ${q.options[ua] || ''}` : '(sin responder)';
+    const correct = q.answer ? `${q.answer}. ${q.options[q.answer] || ''}` : '';
+    rows.push([
+      idx,
+      q.question.replace(/"/g, '""'),
+      yourAns.replace(/"/g, '""'),
+      correct.replace(/"/g, '""'),
+      (q.options['A'] || '').replace(/"/g, '""'),
+      (q.options['B'] || '').replace(/"/g, '""'),
+      (q.options['C'] || '').replace(/"/g, '""'),
+      (q.options['D'] || '').replace(/"/g, '""'),
+      status
+    ]);
+  });
+
+  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'serums_repaso.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function downloadHTML() {
+  const failed = getFailedQuestions();
+  if (failed.length === 0) { alert('¡Felicidades! No tienes preguntas incorrectas ni pendientes.'); return; }
+
+  let body = `<h1 style="color:#0a7c6e;font-family:sans-serif">SERUMS Nutrición — Preguntas para repasar</h1>
+<p style="font-family:sans-serif;color:#666">Total: ${failed.length} preguntas (incorrectas + sin responder)</p><hr>`;
+
+  failed.forEach(({ idx, q, ua, status }) => {
+    const statusColor = status === 'Incorrecta' ? '#dc3545' : '#6c757d';
+    body += `<div style="margin:24px 0;font-family:sans-serif;page-break-inside:avoid;">
+      <p style="margin:0 0 6px"><strong style="color:#0a7c6e">P${idx}.</strong>
+        <span style="background:${statusColor};color:white;padding:2px 8px;border-radius:10px;font-size:12px;margin-left:8px">${status}</span></p>
+      <p style="margin:0 0 10px;font-size:15px;line-height:1.6">${escapeHtmlStr(q.question)}</p>`;
+
+    ['A','B','C','D'].forEach(letter => {
+      if (!q.options[letter]) return;
+      const isCorrect = letter === q.answer;
+      const isWrong = letter === ua && ua !== q.answer;
+      const bg = isCorrect ? '#d4edda' : isWrong ? '#f8d7da' : '#f8f9fa';
+      const mark = isCorrect ? ' ✓' : isWrong ? ' ✗' : '';
+      body += `<div style="background:${bg};padding:8px 12px;border-radius:6px;margin:4px 0;font-size:14px">
+        <strong>${letter}.</strong> ${escapeHtmlStr(q.options[letter])}${mark}</div>`;
+    });
+    body += `</div><hr style="border:none;border-top:1px solid #eee">`;
+  });
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+    <title>SERUMS Repaso</title>
+    <style>@media print{.no-print{display:none}body{font-size:13px}}</style>
+    </head><body style="max-width:800px;margin:0 auto;padding:24px">
+    <div class="no-print" style="margin-bottom:20px">
+      <button onclick="window.print()" style="padding:10px 24px;background:#0a7c6e;color:white;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">🖨️ Imprimir / Guardar como PDF</button>
+    </div>${body}</body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'serums_repaso.html';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function escapeHtmlStr(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 </script>
 </body>
